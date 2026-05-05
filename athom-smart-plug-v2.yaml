@@ -4,8 +4,8 @@ substitutions:
   # Allows ESP device to be automatically lined to an 'Area' in Home Assistant. Typically used for areas such as 'Lounge Room', 'Kitchen' etc
   room: ""
   device_description: "athom smart plug v2"
-  project_name: "Athom Technology.Smart Plug V2"
-  project_version: "v2.0.7"
+  project_name: "China Athom Technology.Athom Plug V2"
+  project_version: "v2.0.8"
   sensor_update_interval: "10s"
   relay_restore_mode: RESTORE_DEFAULT_ON
   # Current Limit in Amps. AU Plug = 10. IL, BR, EU, UK, US Plug = 16.
@@ -46,6 +46,10 @@ esphome:
   project:
     name: "${project_name}"
     version: "${project_version}"
+  platformio_options:
+    board_upload.flash_size: 2MB
+    board_upload.maximum_size: 2097152
+    board_build.ldscript: eagle.flash.2m.ld
   on_boot:
     - priority: 600
       then:
@@ -99,6 +103,9 @@ wifi:
   fast_connect: "${wifi_fast_connect}"
   # Define dns domain / suffix to add to hostname
   domain: "${dns_domain}"
+
+mdns:
+  disabled: false
 
 captive_portal:
 
@@ -166,12 +173,6 @@ binary_sensor:
           - button.press: Reset
 
 sensor:
-  - platform: uptime
-    name: "Uptime Sensor"
-    id: uptime_sensor
-    entity_category: diagnostic
-    internal: true
-
   # Reports the WiFi signal strength/RSSI in dB
   - platform: wifi_signal
     name: "WiFi Signal dB"
@@ -189,14 +190,16 @@ sensor:
     entity_category: diagnostic
     device_class: ""
 
+  # CSE7766 power monitoring chip
   - platform: cse7766
     id: athom_cse7766
     current:
       name: "Current"
+      id: plug_current  # Added ID so we can reference this in other sensors
       icon: mdi:current-ac
       filters:
         - throttle_average: ${sensor_update_interval}
-        - lambda: if (x < 0.060) return 0.0; else return x;   #For the chip will report less than 3w power when no load is connected
+        - lambda: if (x < 0.060) return 0.0; else return x;   # For the chip will report less than 3w power when no load is connected
       on_value_range:
         - above: ${current_limit}
           then:
@@ -204,6 +207,7 @@ sensor:
 
     voltage:
       name: "Voltage"
+      id: plug_voltage  # Added ID so we can reference this in other sensors
       icon: mdi:sine-wave
       filters:
         - throttle_average: ${sensor_update_interval}
@@ -214,7 +218,7 @@ sensor:
       icon: mdi:power
       filters:
         - throttle_average: ${sensor_update_interval}
-        - lambda: if (x < 3.0) return 0.0; else return x;    #For the chip will report less than 3w power when no load is connected
+        - lambda: if (x < 3.0) return 0.0; else return x;    # For the chip will report less than 3w power when no load is connected
 
     energy:
       name: "Energy"
@@ -234,7 +238,6 @@ sensor:
               id(total_energy) += current_energy_value - previous_energy_value;
               previous_energy_value = current_energy_value;
               id(total_energy_sensor).update();
-
 
     apparent_power:
       name: "Apparent Power"
@@ -365,29 +368,15 @@ text_sensor:
 #    device_class: timestamp
 
   #  Creates a sensor of the uptime of the device, in formatted days, hours, minutes and seconds
-  - platform: template
+  - platform: uptime
     name: "Uptime"
     entity_category: diagnostic
-    lambda: |-
-      int seconds = (id(uptime_sensor).state);
-      int days = seconds / (24 * 3600);
-      seconds = seconds % (24 * 3600);
-      int hours = seconds / 3600;
-      seconds = seconds % 3600;
-      int minutes = seconds /  60;
-      seconds = seconds % 60;
-      if ( days > 3650 ) {
-        return { "Starting up" };
-      } else if ( days ) {
-        return { (String(days) +"d " + String(hours) +"h " + String(minutes) +"m "+ String(seconds) +"s").c_str() };
-      } else if ( hours ) {
-        return { (String(hours) +"h " + String(minutes) +"m "+ String(seconds) +"s").c_str() };
-      } else if ( minutes ) {
-        return { (String(minutes) +"m "+ String(seconds) +"s").c_str() };
-      } else {
-        return { (String(seconds) +"s").c_str() };
-      }
     icon: mdi:clock-start
+    update_interval: 60s
+    filters:
+      throttle: 1h
+    format:
+      separator: " "
 
 time:
   - platform: sntp

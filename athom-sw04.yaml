@@ -8,9 +8,9 @@ substitutions:
   # Description as appears in ESPHome & top of webserver page
   device_description: "athom 4gang switch"
   # Project Name
-  project_name: "Athom Technology.4Gang Switch"
+  project_name: "China Athom Technology.4Gang Switch"
   # Projection version denotes the release version of the yaml file, allowing checking of deployed vs latest version
-  project_version: "v1.1.3"
+  project_version: "v1.1.4"
    # Restore the relay (GPO switch) upon reboot to state:
   light1_restore_mode: RESTORE_DEFAULT_OFF
   light2_restore_mode: RESTORE_DEFAULT_OFF
@@ -43,6 +43,10 @@ esphome:
   project:
     name: "${project_name}"
     version: "${project_version}"
+  platformio_options:
+    board_upload.flash_size: 2MB
+    board_upload.maximum_size: 2097152
+    board_build.ldscript: eagle.flash.2m.ld
   on_boot:
     - priority: 600
       then:
@@ -88,9 +92,6 @@ logger:
   level: ${log_level}
   baud_rate: 115200
 
-mdns:
-  disabled: false
-
 web_server:
   port: 80
 
@@ -104,6 +105,9 @@ wifi:
   fast_connect: "${wifi_fast_connect}"
   # Define dns domain / suffix to add to hostname
   domain: "${dns_domain}"
+
+mdns:
+  disabled: false
 
 captive_portal:
 
@@ -187,12 +191,6 @@ binary_sensor:
         - light.toggle: light4
 
 sensor:
-  - platform: uptime
-    name: "Uptime Sensor"
-    id: uptime_sensor
-    entity_category: diagnostic
-    internal: true
-
   - platform: wifi_signal
     name: "WiFi Signal dB"
     id: wifi_signal_db
@@ -289,29 +287,13 @@ text_sensor:
 #    device_class: timestamp
 
   #  Creates a sensor of the uptime of the device, in formatted days, hours, minutes and seconds
-  - platform: template
+  - platform: uptime
     name: "Uptime"
     entity_category: diagnostic
-    lambda: |-
-      int seconds = (id(uptime_sensor).state);
-      int days = seconds / (24 * 3600);
-      seconds = seconds % (24 * 3600);
-      int hours = seconds / 3600;
-      seconds = seconds % 3600;
-      int minutes = seconds /  60;
-      seconds = seconds % 60;
-      if ( days > 3650 ) {
-        return { "Starting up" };
-      } else if ( days ) {
-        return { (String(days) +"d " + String(hours) +"h " + String(minutes) +"m "+ String(seconds) +"s").c_str() };
-      } else if ( hours ) {
-        return { (String(hours) +"h " + String(minutes) +"m "+ String(seconds) +"s").c_str() };
-      } else if ( minutes ) {
-        return { (String(minutes) +"m "+ String(seconds) +"s").c_str() };
-      } else {
-        return { (String(seconds) +"s").c_str() };
-      }
     icon: mdi:clock-start
+    update_interval: 60s
+    format:
+      separator: " "
 
 time:
   - platform: sntp

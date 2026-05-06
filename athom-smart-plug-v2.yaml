@@ -372,9 +372,7 @@ text_sensor:
     name: "Uptime"
     entity_category: diagnostic
     icon: mdi:clock-start
-    update_interval: 60s
-    filters:
-      throttle: 1h
+    update_interval: 1h
     format:
       separator: " "
 
